@@ -452,7 +452,9 @@ func (conn *conn) makeRequestResponse(req Packet, tc *treeConn, ctx context.Cont
 				}
 			} else {
 				if s.sessionFlags&(SMB2_SESSION_FLAG_IS_GUEST|SMB2_SESSION_FLAG_IS_NULL) == 0 {
-					pkt = s.sign(pkt)
+					if _, ok := req.(*TreeConnectRequest); ok || conn.requireSigning {
+						pkt = s.sign(pkt)
+					}
 				}
 			}
 		}

@@ -44,9 +44,9 @@ const (
 )
 
 type cmac struct {
-	k1, k2, ci, digest []byte
-	p                  int // position in ci
-	c                  cipher.Block
+	k1, k2, ci, digest, buf []byte
+	p                       int // position in ci
+	c                       cipher.Block
 }
 
 // TODO(rsc): Should this return an error instead of panic?
@@ -95,13 +95,21 @@ func (d *cmac) Reset() {
 // Write adds the given data to the digest state.
 func (d *cmac) Write(p []byte) (n int, err error) {
 	// Xor input into ci.
-	for _, c := range p {
+	for i := 0; i < len(p); i++ {
 		// If ci is full, encrypt and start over.
 		if d.p >= len(d.ci) {
 			d.c.Encrypt(d.ci, d.ci)
 			d.p = 0
+			if m := (len(p) - i - 1) / len(d.ci) * len(d.ci); m > 0 {
+				if len(d.buf) < m {
+					d.buf = make([]byte, m)
+				}
+				cipher.NewCBCEncrypter(d.c, d.ci).CryptBlocks(d.buf[:m], p[i:i+m])
+				copy(d.ci, d.buf[m-len(d.ci):m])
+				i += m
+			}
 		}
-		d.ci[d.p] ^= c
+		d.ci[d.p] ^= p[i]
 		d.p++
 	}
 	return len(p), nil
