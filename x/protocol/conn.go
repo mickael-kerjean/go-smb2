@@ -59,6 +59,7 @@ type outstandingRequest struct {
 	asyncId        atomic.Uint64
 	cmd            wire.Command
 	ctx            context.Context
+	traceDone      func(error)
 	recv           chan *recvPacket
 	err            error
 	canceled       atomic.Bool
@@ -441,6 +442,11 @@ func (conn *conn) send(ctx context.Context, encrypt bool, reqs ...wire.Packet) (
 	}
 
 	conn.m.Unlock()
+	if t, ok := conn.t.(*transport); ok && t.tracer != nil {
+		for _, rr := range rrs {
+			rr.traceDone = t.tracer(ctx, rr.cmd, rr.msgId)
+		}
+	}
 	return rrs, nil
 }
 
@@ -744,7 +750,10 @@ func (conn *conn) makeOutstandingRequest(ctx context.Context, encrypt bool, msgI
 	return rrs, parts, nil
 }
 
-func (conn *conn) recv(rr *outstandingRequest) (*recvPacket, error) {
+func (conn *conn) recv(rr *outstandingRequest) (rp *recvPacket, err error) {
+	if rr.traceDone != nil {
+		defer func() { rr.traceDone(err) }()
+	}
 	acceptResponse := func(rp *recvPacket) (*recvPacket, error) {
 		if rp == nil {
 			// the channel was closed by conn.close while rr was outstanding

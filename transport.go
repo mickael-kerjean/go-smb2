@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/hirochachacha/go-smb2/v2/x/protocol"
+	"github.com/hirochachacha/go-smb2/v2/x/wire"
 )
 
 // Transport is a built-in SMB transport. Close is idempotent and unblocks I/O.
@@ -33,6 +34,7 @@ func resolveServerAddr(serverName string, defaultPort int) string {
 type TCPDialer struct {
 	Port   int // 0 indicates port 445
 	Dialer *net.Dialer
+	Tracer func(context.Context, wire.Command, uint64) func(error)
 }
 
 // Dial connects to serverName over TCP on the configured port.
@@ -55,7 +57,7 @@ func (d TCPDialer) Dial(ctx context.Context, serverName string) (Transport, erro
 	if err != nil {
 		return nil, err
 	}
-	return NewTransport(conn), nil
+	return protocol.NewTracedTransport(conn, d.Tracer), nil
 }
 
 // QUICDialer establishes SMB-over-QUIC transports.

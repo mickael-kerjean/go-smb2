@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go"
+
+	"github.com/hirochachacha/go-smb2/v2/x/wire"
 )
 
 type directSinkFinder func(head []byte, restSize int) (sink []byte, frontSize int)
@@ -51,7 +53,12 @@ func NewTransport(conn net.Conn) Transport {
 	return &transport{conn: conn}
 }
 
+func NewTracedTransport(conn net.Conn, tracer func(context.Context, wire.Command, uint64) func(error)) Transport {
+	return &transport{conn: conn, tracer: tracer}
+}
+
 type transport struct {
+	tracer            func(context.Context, wire.Command, uint64) func(error)
 	sb                [4]byte
 	conn              packetStream
 	packetReadTimeout time.Duration
