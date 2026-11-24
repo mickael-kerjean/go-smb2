@@ -10,6 +10,9 @@ import (
 	"github.com/go-krb5/krb5/config"
 	"github.com/go-krb5/krb5/credentials"
 	"github.com/go-krb5/krb5/keytab"
+	"github.com/go-krb5/krb5/messages"
+	krbspnego "github.com/go-krb5/krb5/spnego"
+	"github.com/go-krb5/krb5/types"
 )
 
 // KerberosConfig configures one Kerberos authentication method. Use
@@ -200,6 +203,17 @@ func (c *KerberosCredential) NewInitiator(ctx context.Context, serverName string
 		spn = "cifs/" + serverName
 	}
 	return &kerberosInitiator{Client: c.client, TargetSPN: spn, owner: c}, nil
+}
+
+type KerberosTicket struct {
+	Client     *krbclient.Client
+	Ticket     messages.Ticket
+	SessionKey types.EncryptionKey
+	Options    []krbspnego.KRB5TokenOption
+}
+
+func (c KerberosTicket) NewInitiator(ctx context.Context, serverName string) (Initiator, error) {
+	return &kerberosInitiator{Client: c.Client, TargetSPN: "cifs/" + serverName, ticket: &c}, nil
 }
 
 // Close stops ticket renewal and releases the cache. It is idempotent and

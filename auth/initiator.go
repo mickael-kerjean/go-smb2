@@ -125,6 +125,7 @@ type kerberosInitiator struct {
 	owner     *KerberosCredential
 	Client    *client.Client
 	TargetSPN string
+	ticket    *KerberosTicket
 
 	ticketKey  types.EncryptionKey
 	contextKey types.EncryptionKey
@@ -148,9 +149,12 @@ func (i *kerberosInitiator) InitSecContext() ([]byte, error) {
 			return nil, errCredentialClosed
 		}
 	}
-	*i = kerberosInitiator{Client: i.Client, TargetSPN: i.TargetSPN, owner: i.owner}
+	*i = kerberosInitiator{Client: i.Client, TargetSPN: i.TargetSPN, owner: i.owner, ticket: i.ticket}
 	if i.Client == nil || i.Client.Credentials == nil || i.TargetSPN == "" {
 		return nil, errors.New("kerberos: Client and TargetSPN are required")
+	}
+	if i.ticket != nil {
+		return i.createAPReq(i.ticket.Ticket, i.ticket.SessionKey, i.ticket.Options...)
 	}
 	ticket, key, err := i.Client.GetServiceTicket(i.TargetSPN)
 	if err != nil {
@@ -175,13 +179,13 @@ func validateKerberosKey(key types.EncryptionKey) error {
 	return nil
 }
 
-func (i *kerberosInitiator) createAPReq(ticket messages.Ticket, key types.EncryptionKey) ([]byte, error) {
+func (i *kerberosInitiator) createAPReq(ticket messages.Ticket, key types.EncryptionKey, opts ...krbspnego.KRB5TokenOption) ([]byte, error) {
 	if err := validateKerberosKey(key); err != nil {
 		return nil, err
 	}
 	req, err := krbspnego.NewKRB5TokenAPREQ(i.Client, ticket, key,
 		[]int{gssapi.ContextFlagMutual, gssapi.ContextFlagInteg, gssapi.ContextFlagReplay, gssapi.ContextFlagSequence},
-		[]int{flags.APOptionMutualRequired})
+		[]int{flags.APOptionMutualRequired}, opts...)
 	if err != nil {
 		return nil, err
 	}
