@@ -359,6 +359,19 @@ func (conn *conn) mustSign(s *session, req wire.Packet) bool {
 }
 
 func (conn *conn) send(ctx context.Context, encrypt bool, reqs ...wire.Packet) (rrs []*outstandingRequest, err error) {
+	if t, ok := conn.t.(*transport); ok && t.tracer != nil {
+		defer func() {
+			if err != nil {
+				for _, req := range reqs {
+					t.tracer(ctx, req.Command(), 0)(err)
+				}
+				return
+			}
+			for _, rr := range rrs {
+				rr.traceDone = t.tracer(ctx, rr.cmd, rr.msgId)
+			}
+		}()
+	}
 	// CANCEL reuses an outstanding MID and has its own nonce domain. Only
 	// sendCancel may send it, once per request, without reserving ordinary IDs.
 	for _, req := range reqs {
@@ -442,11 +455,6 @@ func (conn *conn) send(ctx context.Context, encrypt bool, reqs ...wire.Packet) (
 	}
 
 	conn.m.Unlock()
-	if t, ok := conn.t.(*transport); ok && t.tracer != nil {
-		for _, rr := range rrs {
-			rr.traceDone = t.tracer(ctx, rr.cmd, rr.msgId)
-		}
-	}
 	return rrs, nil
 }
 
