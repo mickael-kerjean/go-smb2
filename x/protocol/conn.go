@@ -363,12 +363,12 @@ func (conn *conn) send(ctx context.Context, encrypt bool, reqs ...wire.Packet) (
 		defer func() {
 			if err != nil {
 				for _, req := range reqs {
-					t.tracer(ctx, req.Command(), 0)(err)
+					t.tracer(ctx, req.Command(), 0, conn.dialect)(err)
 				}
 				return
 			}
 			for _, rr := range rrs {
-				rr.traceDone = t.tracer(ctx, rr.cmd, rr.msgId)
+				rr.traceDone = t.tracer(ctx, rr.cmd, rr.msgId, conn.dialect)
 			}
 		}()
 	}

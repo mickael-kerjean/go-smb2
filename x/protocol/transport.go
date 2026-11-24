@@ -53,12 +53,12 @@ func NewTransport(conn net.Conn) Transport {
 	return &transport{conn: conn}
 }
 
-func NewTracedTransport(conn net.Conn, tracer func(context.Context, wire.Command, uint64) func(error)) Transport {
+func NewTracedTransport(conn net.Conn, tracer func(context.Context, wire.Command, uint64, uint16) func(error)) Transport {
 	return &transport{conn: conn, tracer: tracer}
 }
 
 type transport struct {
-	tracer            func(context.Context, wire.Command, uint64) func(error)
+	tracer            func(context.Context, wire.Command, uint64, uint16) func(error)
 	sb                [4]byte
 	conn              packetStream
 	packetReadTimeout time.Duration

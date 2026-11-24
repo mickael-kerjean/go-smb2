@@ -34,7 +34,7 @@ func resolveServerAddr(serverName string, defaultPort int) string {
 type TCPDialer struct {
 	Port   int // 0 indicates port 445
 	Dialer *net.Dialer
-	Tracer func(context.Context, wire.Command, uint64) func(error)
+	Tracer func(context.Context, wire.Command, uint64, uint16) func(error)
 }
 
 // Dial connects to serverName over TCP on the configured port.
