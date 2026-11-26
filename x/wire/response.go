@@ -1,8 +1,6 @@
 package wire
 
 import (
-	"fmt"
-	"os"
 	"uuid"
 
 	"github.com/hirochachacha/go-smb2/v2/internal/utf16le"
@@ -1572,14 +1570,13 @@ func (r IoctlResponseDecoder) IsInvalidPayload() bool {
 	if outputOffset < fixedEnd || outputOffset > packetEnd || outputCount > packetEnd-outputOffset {
 		return true
 	}
-	fmt.Fprintf(os.Stdout, "go-smb2::ioctl_response structure_size=%d reserved=0x%04x ctl=0x%08x file_id=%x in_off=%d in_len=%d out_off=%d out_len=%d expected_out_off=%d flags=0x%08x reserved2=0x%08x body_len=%d packet_end=%d hex=%x\n",
-		r.StructureSize(), le.Uint16(r[2:4]), r.CtlCode(), []byte(r[8:24]),
-		inputOffset, inputCount, outputOffset, outputCount, (inputOffset+inputCount+7)&^uint64(7),
-		r.Flags(), le.Uint32(r[44:48]), len(r), packetEnd, []byte(r))
 
 	// [MS-SMB2] 2.2.32 requires non-empty buffers after the fixed part and
 	// requires non-empty output at InputOffset+InputCount rounded to 8 bytes.
 	// Widen the uint32 fields before addition and rounding to avoid overflow.
+	if inputCount == 0 && inputOffset == 0 { // NetApp: no input, offset 0
+		inputOffset = fixedEnd
+	}
 	inputEnd := inputOffset + inputCount
 	return outputOffset != (inputEnd+7)&^uint64(7)
 }
