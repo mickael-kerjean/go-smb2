@@ -1576,7 +1576,12 @@ func (r IoctlResponseDecoder) IsInvalidPayload() bool {
 		r.StructureSize(), le.Uint16(r[2:4]), r.CtlCode(), []byte(r[8:24]),
 		inputOffset, inputCount, outputOffset, outputCount, (inputOffset+inputCount+7)&^uint64(7),
 		r.Flags(), le.Uint32(r[44:48]), len(r), packetEnd, []byte(r))
-	return false
+
+	// [MS-SMB2] 2.2.32 requires non-empty buffers after the fixed part and
+	// requires non-empty output at InputOffset+InputCount rounded to 8 bytes.
+	// Widen the uint32 fields before addition and rounding to avoid overflow.
+	inputEnd := inputOffset + inputCount
+	return outputOffset != (inputEnd+7)&^uint64(7)
 }
 
 func (r IoctlResponseDecoder) IsInvalid() bool {
